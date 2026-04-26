@@ -7,8 +7,6 @@ services:
       - PORT=5000
       # Inside the container we save to /data/saves; bind mount maps host path -> this dir
       - PATH_TO_SAVE=/data/saves
-      # Optional: pass your OpenAI key from your host env or .env file next to this compose file
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
     ports:
       - "${PORT:-5000}:5000"
     volumes:

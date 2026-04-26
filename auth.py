@@ -3,7 +3,7 @@
 Registers the following routes (no url_prefix — mounted at root):
   GET/POST  /register
   GET/POST  /login
-  GET       /logout
+  POST      /logout
   GET/POST  /onboarding   (login_required)
 
 Redirects to url_for("main.dashboard") after login/register/onboarding.
@@ -16,7 +16,14 @@ import anthropic
 from flask import Blueprint, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required, login_user, logout_user
 from flask_wtf import FlaskForm
-from wtforms import EmailField, PasswordField, StringField, SubmitField, TextAreaField
+from wtforms import (
+    EmailField,
+    HiddenField,
+    PasswordField,
+    StringField,
+    SubmitField,
+    TextAreaField,
+)
 from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationError
 
 from crypto import decrypt_api_key, encrypt_api_key
@@ -68,6 +75,7 @@ class LoginForm(FlaskForm):
         "Email or Username", validators=[DataRequired(), Length(max=255)]
     )
     password = PasswordField("Password", validators=[DataRequired()])
+    next_url = HiddenField()
     submit = SubmitField("Log In")
 
 
@@ -76,6 +84,10 @@ class OnboardingAnswerForm(FlaskForm):
         "Your answer", validators=[DataRequired(), Length(min=1, max=2000)]
     )
     submit = SubmitField("Next →")
+
+
+class LogoutForm(FlaskForm):
+    submit = SubmitField("Log Out")
 
 
 # ── Onboarding helpers ─────────────────────────────────────────────────────────
@@ -166,6 +178,9 @@ def login():
         return redirect(url_for("main.dashboard"))
 
     form = LoginForm()
+    if request.method == "GET":
+        form.next_url.data = request.args.get("next", "")
+
     if form.validate_on_submit():
         identifier = form.identifier.data.strip()
         user = User.query.filter(
@@ -175,16 +190,21 @@ def login():
         if user and bcrypt.check_password_hash(user.password_hash, form.password.data):
             login_user(user)
             session["show_checkin"] = True
-            return redirect(_safe_next(request.args.get("next", ""), url_for("main.dashboard")))
+            next_url = form.next_url.data or request.args.get("next", "")
+            return redirect(_safe_next(next_url, url_for("main.dashboard")))
 
         flash("Invalid email/username or password.", "error")
 
     return render_template("auth/login.html", form=form)
 
 
-@bp.get("/logout")
+@bp.post("/logout")
 @login_required
 def logout():
+    form = LogoutForm()
+    if not form.validate_on_submit():
+        flash("Invalid logout request. Please try again.", "error")
+        return redirect(url_for("main.dashboard"))
     logout_user()
     return redirect(url_for("auth.login"))
 

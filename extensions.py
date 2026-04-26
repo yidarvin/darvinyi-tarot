@@ -7,8 +7,10 @@ Each extension is initialised against the app in create_app() via .init_app().
 
 from flask_bcrypt import Bcrypt
 from flask_login import LoginManager
+from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
 login_manager = LoginManager()
 bcrypt = Bcrypt()
+migrate = Migrate()

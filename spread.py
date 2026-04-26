@@ -130,7 +130,7 @@ def draw_celtic_cross_spread(
 
 
 def main() -> None:
-    load_dotenv()  # prepares for future OpenAI usage
+    load_dotenv()
 
     parser = argparse.ArgumentParser(description="Tarot spread CLI")
     parser.add_argument("spread", choices=["3card", "celticcross"], help="Which spread to draw")
@@ -139,7 +139,7 @@ def main() -> None:
         dest="interpret",
         action="store_true",
         default=True,
-        help="Generate interpretations with OpenAI for each card as it is revealed (default: on)",
+        help="Generate interpretations with Anthropic for each card as it is revealed (default: on)",
     )
     parser.add_argument(
         "--no-interpret",
@@ -149,8 +149,8 @@ def main() -> None:
     )
     parser.add_argument(
         "--model",
-        default="gpt-5",
-        help="OpenAI model to use for interpretations (default: gpt-5)",
+        default="claude-sonnet-4-20250514",
+        help="Anthropic model to use for interpretations (default: claude-sonnet-4-20250514)",
     )
     parser.add_argument(
         "--reversed",

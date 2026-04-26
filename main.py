@@ -435,8 +435,6 @@ def reading_card_stream(reading_id: int, card_index: int):
     # Capture context before entering the generator so closures have stable values
     user_context = _build_user_context(current_user.id)
     prior = _prior_from_cards(cards, card_index - 1)
-    # Snapshot the user id for the DB write inside the generator
-    user_id_snapshot = current_user.id
 
     def _generate():
         # Create interpreter inside generator — typed errors propagate as SSE codes

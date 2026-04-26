@@ -24,7 +24,7 @@ A multi-user tarot reading web app powered by Claude. Each user stores their own
    | `FERNET_KEY` | `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` |
    | `DATABASE_URL` | Set automatically by the Postgres plugin — no action needed |
 
-5. **Deploy** — Railway builds from the `Dockerfile` and starts the app. The first boot calls `db.create_all()` to create the three tables automatically.
+5. **Deploy** — Railway builds from the `Dockerfile` and starts the app. Startup runs `flask db upgrade` before launching gunicorn, so schema migrations are applied automatically.
 
 6. Visit the Railway-provided URL, register an account, and enter your Anthropic API key during onboarding.
 
@@ -51,7 +51,17 @@ A multi-user tarot reading web app powered by Claude. Each user stores their own
    pip install -r requirements.txt
    ```
 
-5. Run:
+5. Run tests:
+   ```
+   python -m unittest discover -s tests -p "test_*.py" -v
+   ```
+
+6. Apply migrations:
+   ```
+   FLASK_APP=app:create_app flask db upgrade
+   ```
+
+7. Run the web app:
    ```
    python app.py
    ```
@@ -62,6 +72,7 @@ A multi-user tarot reading web app powered by Claude. Each user stores their own
 `spread.py` still works as a standalone CLI for quick card draws without a database:
 ```
 export ANTHROPIC_API_KEY=sk-ant-...   # optional — skips interpretation if unset
+export PATH_TO_SAVE=/tmp/tarot_saves  # optional — where markdown exports are written
 python spread.py 3card --seed 42 --no-interpret
 python spread.py celticcross --reversal-prob 0.4
 ```
@@ -78,4 +89,4 @@ Then open `http://localhost:5000`.
 ### Notes
 - Card images are bundled under `cards/standard` and served at `/cards/<filename>`.
 - The app uses gunicorn with `gthread` workers and `--timeout 120` to support long-lived SSE streams.
-- `db.create_all()` runs on every startup — it is a no-op for tables that already exist, so it is safe without a migration tool. Use Flask-Migrate for schema changes once in production.
+- Database schema is managed via Flask-Migrate in `migrations/`; run `flask db upgrade` after pulling schema changes.

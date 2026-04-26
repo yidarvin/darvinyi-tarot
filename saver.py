@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 from dotenv import load_dotenv
-from openai import OpenAI, BadRequestError
+import anthropic
 
 
 def _yaml_quote(value: str) -> str:
@@ -31,13 +31,14 @@ def _generate_concise_title(
     prior: List[Dict[str, str]],
     *,
     spread_key: str,
-    model: str = "gpt-3.5-turbo",
+    model: str = "claude-3-5-haiku-latest",
 ) -> Optional[str]:
     load_dotenv()
-    if not os.getenv("OPENAI_API_KEY"):
+    api_key = os.getenv("ANTHROPIC_API_KEY", "").strip()
+    if not api_key:
         return None
 
-    client = OpenAI()
+    client = anthropic.Anthropic(api_key=api_key)
     # Compress prior to essential facts
     compact = [
         {
@@ -64,15 +65,19 @@ def _generate_concise_title(
     }
 
     try:
-        completion = client.chat.completions.create(
+        completion = client.messages.create(
             model=model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)},
-            ],
+            max_tokens=48,
             temperature=0.7,
+            system=system_prompt,
+            messages=[
+                {
+                    "role": "user",
+                    "content": json.dumps(user_payload, ensure_ascii=False),
+                }
+            ],
         )
-        title = (completion.choices[0].message.content or "").strip()
+        title = (completion.content[0].text or "").strip()
         # Final safety trims
         title = title.strip().strip('"\'')
         # Limit word count to 7 words
@@ -80,8 +85,6 @@ def _generate_concise_title(
         if len(words) > 7:
             title = " ".join(words[:7])
         return title
-    except BadRequestError:
-        return None
     except Exception:
         return None
 
@@ -109,7 +112,7 @@ def save_read_markdown(
     except Exception:
         return None
 
-    # Title via GPT-3.5-turbo; fallback to deterministic title
+    # Optional Anthropic title; fallback to deterministic title
     title = _generate_concise_title(prior, spread_key=spread_key) or (
         f"{('3-Card' if spread_key == '3card' else 'Celtic Cross')} Reading { _today_ymd() }"
     )

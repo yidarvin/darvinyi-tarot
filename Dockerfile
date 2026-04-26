@@ -14,10 +14,12 @@ COPY . .
 
 EXPOSE 5000
 
+# Run migrations at boot, then start Gunicorn.
 # Use shell form so $PORT (injected by Railway at runtime) is expanded.
 # --worker-class gthread lets a single process serve several concurrent SSE
 # streams without blocking; --timeout 120 keeps long-lived LLM streams alive.
-CMD gunicorn "app:create_app()" \
+CMD FLASK_APP=app:create_app flask db upgrade && \
+    gunicorn "app:create_app()" \
     --bind "0.0.0.0:${PORT:-5000}" \
     --workers 1 \
     --worker-class gthread \

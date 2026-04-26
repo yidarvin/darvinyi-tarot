@@ -74,6 +74,13 @@
       color: var(--muted);
       padding: 6px 12px;
     }
+    .nav-inline-form { margin: 0; }
+    .nav-link-button {
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+    }
 
     /* ── Flash messages ─────────────────────────────────────────────────────── */
     .flash-zone { padding: 12px 24px 0; }
@@ -217,7 +224,10 @@
         <a href="{{ url_for('main.reading_setup') }}" class="nav-link">New Reading</a>
         <a href="{{ url_for('main.history') }}"       class="nav-link">History</a>
         <a href="{{ url_for('main.settings') }}"      class="nav-link">Settings</a>
-        <a href="{{ url_for('auth.logout') }}"         class="nav-link">Log Out</a>
+        <form method="POST" action="{{ url_for('auth.logout') }}" class="nav-inline-form">
+          {{ logout_form.hidden_tag() }}
+          <button type="submit" class="nav-link nav-link-button">Log Out</button>
+        </form>
       {% else %}
         <a href="{{ url_for('auth.login') }}"    class="nav-link">Log In</a>
         <a href="{{ url_for('auth.register') }}" class="nav-link">Register</a>
