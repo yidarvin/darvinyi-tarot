@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Share an Update — Tarot{% endblock %}
+
+{% block styles %}
+.update-wrap {
+  min-height: calc(100vh - var(--nav-h));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+}
+.update-card {
+  width: 100%;
+  max-width: 560px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 44px 40px;
+}
+.update-eyebrow { font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
+.update-title   { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+.update-subtitle{ font-size: 14px; color: var(--muted); margin-bottom: 32px; }
+.update-footer  { display: flex; align-items: center; justify-content: space-between; margin-top: 20px; }
+.update-footer a{ font-size: 14px; color: var(--muted); text-decoration: none; }
+.update-footer a:hover { color: var(--text); }
+{% endblock %}
+
+{% block content %}
+<div class="update-wrap">
+  <div class="update-card">
+    <p class="update-eyebrow">☽ Life update</p>
+    <h1 class="update-title">What's been going on?</h1>
+    <p class="update-subtitle">Share whatever feels relevant — relationships, work, state of mind. This context shapes your reading.</p>
+
+    <form method="POST" action="{{ url_for('main.life_update') }}" novalidate>
+      {{ form.hidden_tag() }}
+      <div class="field{{ ' has-error' if form.update_text.errors else '' }}">
+        {{ form.update_text(class="field-input", rows=6, placeholder="Life has been…", autofocus=true) }}
+        {% for e in form.update_text.errors %}<span class="field-error">{{ e }}</span>{% endfor %}
+      </div>
+      <div class="update-footer">
+        <a href="{{ url_for('main.reading_setup') }}">Skip and start reading →</a>
+        <button type="submit" class="btn btn-primary">Save &amp; Continue →</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

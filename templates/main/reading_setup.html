@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% block title %}New Reading — Tarot{% endblock %}
+
+{% block styles %}
+.setup-wrap {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 52px 24px 80px;
+}
+.setup-eyebrow { font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
+.setup-title   { font-size: 28px; font-weight: 700; margin-bottom: 6px; }
+.setup-subtitle{ font-size: 15px; color: var(--muted); margin-bottom: 44px; }
+
+/* Spread type selector */
+.spread-section-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+.spread-choices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 40px;
+}
+.spread-choice { cursor: pointer; }
+.spread-choice input[type="radio"] { display: none; }
+.spread-option {
+  background: var(--card-bg);
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  padding: 28px 20px 24px;
+  text-align: center;
+  transition: border-color 0.18s, background 0.18s, box-shadow 0.18s;
+  user-select: none;
+}
+.spread-choice:hover .spread-option {
+  border-color: var(--accent-glow);
+  background: rgba(124,92,255,0.05);
+}
+.spread-choice input[type="radio"]:checked + .spread-option {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  box-shadow: 0 0 0 3px rgba(124,92,255,0.15), inset 0 0 30px rgba(124,92,255,0.05);
+}
+.spread-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 18px;
+  height: 70px;
+}
+.mini-card {
+  width: 22px;
+  height: 36px;
+  border-radius: 4px;
+  background: rgba(124,92,255,0.25);
+  border: 1px solid rgba(124,92,255,0.45);
+}
+/* Celtic Cross preview */
+.celtic-preview {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+.celtic-cross {
+  display: grid;
+  grid-template-columns: 22px 22px 22px;
+  grid-template-rows: 36px 36px 36px;
+  gap: 4px;
+}
+.celtic-staff {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.mc-xs {
+  width: 18px;
+  height: 28px;
+  border-radius: 3px;
+  background: rgba(124,92,255,0.25);
+  border: 1px solid rgba(124,92,255,0.45);
+}
+.mc-empty { visibility: hidden; }
+.spread-name {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+.spread-desc {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+/* Intention field */
+.intention-section { margin-bottom: 40px; }
+.intention-section .field-label { font-size: 12px; }
+.optional-tag {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  margin-left: 6px;
+}
+
+/* Submit */
+.setup-submit { display: flex; justify-content: flex-end; }
+{% endblock %}
+
+{% block content %}
+<div class="setup-wrap">
+  <p class="setup-eyebrow">✦ New Reading</p>
+  <h1 class="setup-title">Choose your spread</h1>
+  <p class="setup-subtitle">Select the layout, then set an intention if you have one.</p>
+
+  <form method="POST" action="{{ url_for('main.reading_start') }}" novalidate>
+    {{ form.hidden_tag() }}
+
+    <p class="spread-section-label">Spread type</p>
+
+    <div class="spread-choices">
+      {% for subfield in form.spread_type %}
+        <label class="spread-choice">
+          {{ subfield }}
+          <div class="spread-option">
+
+            {% if subfield.data == '3card' %}
+            <div class="spread-preview">
+              <div class="mini-card"></div>
+              <div class="mini-card"></div>
+              <div class="mini-card"></div>
+            </div>
+            <div class="spread-name">3-Card Spread</div>
+            <div class="spread-desc">Past · Present · Future</div>
+
+            {% else %}
+            <div class="spread-preview celtic-preview">
+              <div class="celtic-cross">
+                <div class="mc-empty"></div><div class="mc-xs"></div><div class="mc-empty"></div>
+                <div class="mc-xs"></div><div class="mc-xs"></div><div class="mc-xs"></div>
+                <div class="mc-empty"></div><div class="mc-xs"></div><div class="mc-empty"></div>
+              </div>
+              <div class="celtic-staff">
+                <div class="mc-xs"></div>
+                <div class="mc-xs"></div>
+                <div class="mc-xs"></div>
+                <div class="mc-xs"></div>
+              </div>
+            </div>
+            <div class="spread-name">Celtic Cross</div>
+            <div class="spread-desc">A 10-card deep exploration</div>
+            {% endif %}
+
+          </div>
+        </label>
+      {% endfor %}
+    </div>
+
+    {% if form.spread_type.errors %}
+      {% for e in form.spread_type.errors %}<span class="field-error" style="display:block;margin:-32px 0 20px;">{{ e }}</span>{% endfor %}
+    {% endif %}
+
+    <!-- Intention -->
+    <div class="intention-section">
+      <div class="field{{ ' has-error' if form.intention.errors else '' }}">
+        <label class="field-label">
+          Question or intention
+          <span class="optional-tag">(optional)</span>
+        </label>
+        {{ form.intention(class="field-input", rows=3,
+           placeholder="e.g. 'What do I need to know about my career path right now?'") }}
+        {% for e in form.intention.errors %}<span class="field-error">{{ e }}</span>{% endfor %}
+      </div>
+    </div>
+
+    <div class="setup-submit">
+      <button type="submit" class="btn btn-primary btn-lg">
+        Draw Cards →
+      </button>
+    </div>
+
+  </form>
+</div>
+{% endblock %}

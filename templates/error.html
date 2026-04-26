@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} — Tarot{% endblock %}
+
+{% block styles %}
+.error-page {
+  max-width: 480px;
+  margin: 100px auto;
+  text-align: center;
+  padding: 0 24px;
+}
+.error-code {
+  font-size: 72px;
+  font-weight: 800;
+  color: var(--border);
+  line-height: 1;
+  margin-bottom: 20px;
+}
+.error-title { font-size: 22px; font-weight: 700; margin-bottom: 10px; }
+.error-msg   { font-size: 15px; color: var(--muted); margin-bottom: 36px; line-height: 1.6; }
+.error-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+{% endblock %}
+
+{% block content %}
+<div class="error-page">
+  <div class="error-code">{{ code }}</div>
+  <h1 class="error-title">{{ title }}</h1>
+  <p class="error-msg">{{ message }}</p>
+  <div class="error-actions">
+    <a href="javascript:history.back()" class="btn btn-ghost">← Back</a>
+    {% if current_user.is_authenticated %}
+      <a href="{{ url_for('main.dashboard') }}" class="btn btn-primary">Go to Dashboard</a>
+    {% else %}
+      <a href="{{ url_for('auth.login') }}" class="btn btn-primary">Log In</a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

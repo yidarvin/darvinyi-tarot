@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Settings — Tarot{% endblock %}
+
+{% block styles %}
+.settings-page { max-width: 520px; margin: 0 auto; padding: 56px 24px 80px; }
+
+.settings-header { margin-bottom: 40px; }
+.settings-eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+.settings-title { font-size: 26px; font-weight: 700; }
+
+.settings-section {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 28px 32px;
+  margin-bottom: 20px;
+}
+.settings-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 20px;
+}
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-dim);
+  font-size: 14px;
+}
+.info-row:last-child { border-bottom: none; padding-bottom: 0; }
+.info-row-label { color: var(--muted); }
+.info-row-value { font-weight: 500; }
+{% endblock %}
+
+{% block content %}
+<div class="settings-page">
+
+  <div class="settings-header">
+    <p class="settings-eyebrow">✦ Account</p>
+    <h1 class="settings-title">Settings</h1>
+  </div>
+
+  <!-- Account info (read-only) -->
+  <div class="settings-section">
+    <p class="settings-section-title">Account</p>
+    <div class="info-row">
+      <span class="info-row-label">Username</span>
+      <span class="info-row-value">{{ current_user.username }}</span>
+    </div>
+    <div class="info-row">
+      <span class="info-row-label">Email</span>
+      <span class="info-row-value">{{ current_user.email }}</span>
+    </div>
+    <div class="info-row">
+      <span class="info-row-label">API key</span>
+      <span class="info-row-value">
+        {% if current_user.llm_api_key_encrypted %}
+          <span style="color:var(--accent)">✓ Saved</span>
+        {% else %}
+          <span style="color:#fca5a5">Not set</span>
+        {% endif %}
+      </span>
+    </div>
+  </div>
+
+  <!-- Update API key -->
+  <div class="settings-section">
+    <p class="settings-section-title">Update Anthropic API Key</p>
+    <form method="post" action="{{ url_for('main.settings') }}" novalidate>
+      {{ form.hidden_tag() }}
+
+      <div class="field {% if form.new_api_key.errors %}has-error{% endif %}">
+        <label class="field-label" for="new_api_key">New API Key</label>
+        {{ form.new_api_key(
+              id="new_api_key",
+              class="field-input",
+              placeholder="sk-ant-api03-…",
+              autocomplete="off"
+           ) }}
+        {% for err in form.new_api_key.errors %}
+          <span class="field-error">{{ err }}</span>
+        {% endfor %}
+        <p class="field-hint">
+          Your key is encrypted at rest with Fernet. It is never stored in plain text
+          or transmitted to anyone other than Anthropic.
+        </p>
+      </div>
+
+      <div style="margin-top: 8px;">
+        {{ form.submit(class="btn btn-primary") }}
+      </div>
+    </form>
+  </div>
+
+</div>
+{% endblock %}

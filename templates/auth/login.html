@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Log In — Tarot{% endblock %}
+
+{% block styles %}
+.auth-wrap {
+  min-height: calc(100vh - var(--nav-h));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+}
+.auth-card {
+  width: 100%;
+  max-width: 440px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 44px 40px;
+}
+.auth-eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+.auth-title    { font-size: 26px; font-weight: 700; margin-bottom: 6px; }
+.auth-subtitle { font-size: 14px; color: var(--muted); margin-bottom: 36px; }
+.auth-footer   { text-align: center; margin-top: 28px; font-size: 14px; color: var(--muted); }
+.auth-footer a { color: var(--accent); text-decoration: none; }
+.auth-footer a:hover { text-decoration: underline; }
+{% endblock %}
+
+{% block content %}
+<div class="auth-wrap">
+  <div class="auth-card">
+    <p class="auth-eyebrow">✦ Welcome back</p>
+    <h1 class="auth-title">Log in</h1>
+    <p class="auth-subtitle">The cards are waiting.</p>
+
+    <form method="POST" action="{{ url_for('auth.login') }}" novalidate>
+      {{ form.hidden_tag() }}
+
+      <div class="field{{ ' has-error' if form.identifier.errors else '' }}">
+        {{ form.identifier.label(class="field-label") }}
+        {{ form.identifier(class="field-input", placeholder="email or username", autocomplete="username", autofocus=true) }}
+        {% for e in form.identifier.errors %}<span class="field-error">{{ e }}</span>{% endfor %}
+      </div>
+
+      <div class="field{{ ' has-error' if form.password.errors else '' }}">
+        {{ form.password.label(class="field-label") }}
+        {{ form.password(class="field-input", autocomplete="current-password") }}
+        {% for e in form.password.errors %}<span class="field-error">{{ e }}</span>{% endfor %}
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block" style="margin-top: 8px;">
+        Log In →
+      </button>
+    </form>
+
+    <div class="auth-footer">
+      New here? <a href="{{ url_for('auth.register') }}">Create an account</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

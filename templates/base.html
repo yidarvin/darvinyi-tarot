@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{% block title %}Tarot{% endblock %}</title>
+  <style>
+    /* ── Design tokens ─────────────────────────────────────────────────────── */
+    :root {
+      --bg:          #0f1020;
+      --panel-bg:    #14162b;
+      --card-bg:     #171938;
+      --text:        #f3f4f6;
+      --muted:       #9aa3b2;
+      --accent:      #7c5cff;
+      --accent-hover:#6a4de8;
+      --accent-dim:  rgba(124,92,255,0.15);
+      --accent-glow: rgba(124,92,255,0.25);
+      --border:      #2f3364;
+      --border-dim:  #232649;
+      --shadow:      0 8px 24px rgba(0,0,0,0.4);
+      --danger:      #ef4444;
+      --danger-bg:   rgba(239,68,68,0.1);
+      --danger-border:rgba(239,68,68,0.3);
+      --nav-h:       60px;
+    }
+
+    /* ── Reset ─────────────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      background: radial-gradient(1200px 600px at 30% -10%, #1b1e39 0%, var(--bg) 60%);
+      background-attachment: fixed;
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+    a { color: inherit; }
+
+    /* ── Navigation ────────────────────────────────────────────────────────── */
+    .site-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: var(--nav-h);
+      padding: 0 24px;
+      border-bottom: 1px solid var(--border-dim);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(15,16,32,0.92);
+      backdrop-filter: blur(10px);
+    }
+    .nav-logo {
+      font-size: 17px;
+      font-weight: 600;
+      text-decoration: none;
+      color: var(--text);
+      letter-spacing: 0.03em;
+    }
+    .nav-logo .star { color: var(--accent); margin-right: 6px; }
+    .nav-links { display: flex; gap: 6px; align-items: center; }
+    .nav-link {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 14px;
+      padding: 6px 12px;
+      border-radius: 7px;
+      transition: color 0.15s, background 0.15s;
+    }
+    .nav-link:hover { color: var(--text); background: rgba(255,255,255,0.06); }
+    .nav-user {
+      font-size: 13px;
+      color: var(--muted);
+      padding: 6px 12px;
+    }
+
+    /* ── Flash messages ─────────────────────────────────────────────────────── */
+    .flash-zone { padding: 12px 24px 0; }
+    .flash {
+      padding: 11px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 8px;
+      border: 1px solid;
+    }
+    .flash-error   { background: var(--danger-bg); border-color: var(--danger-border); color: #fca5a5; }
+    .flash-success { background: rgba(34,197,94,0.1); border-color: rgba(34,197,94,0.3); color: #86efac; }
+    .flash-info    { background: var(--accent-dim); border-color: var(--border); color: var(--muted); }
+
+    /* ── Buttons ────────────────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 10px 22px;
+      border-radius: 9px;
+      font-size: 14px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      text-decoration: none;
+      border: 1px solid transparent;
+      transition: background 0.15s, border-color 0.15s, opacity 0.3s, transform 0.15s;
+      line-height: 1;
+      white-space: nowrap;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+    .btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+    .btn-outline {
+      background: transparent;
+      color: var(--text);
+      border-color: var(--border);
+    }
+    .btn-outline:hover { background: rgba(255,255,255,0.05); }
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      border-color: transparent;
+    }
+    .btn-ghost:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+    .btn-lg  { padding: 14px 32px; font-size: 16px; border-radius: 11px; }
+    .btn-sm  { padding: 7px 14px; font-size: 13px; }
+    .btn-block { width: 100%; }
+
+    /* ── Form fields ────────────────────────────────────────────────────────── */
+    .field { margin-bottom: 20px; }
+    .field-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 7px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .field-input {
+      width: 100%;
+      background: rgba(10,11,24,0.7);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 11px 14px;
+      font-size: 15px;
+      font-family: inherit;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      outline: none;
+    }
+    .field-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(124,92,255,0.18);
+    }
+    textarea.field-input { resize: vertical; min-height: 96px; }
+    .field-error { display: block; font-size: 12px; color: #fca5a5; margin-top: 5px; }
+    .field.has-error .field-input { border-color: var(--danger); }
+    .field-hint { font-size: 12px; color: var(--muted); margin-top: 5px; line-height: 1.5; }
+
+    /* ── UI Cards ───────────────────────────────────────────────────────────── */
+    .ui-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    /* ── Muted text / helpers ───────────────────────────────────────────────── */
+    .text-muted  { color: var(--muted); }
+    .text-accent { color: var(--accent); }
+    .text-sm     { font-size: 13px; }
+    .text-xs     { font-size: 12px; }
+    .mt-4  { margin-top: 4px; }
+    .mt-8  { margin-top: 8px; }
+    .mt-16 { margin-top: 16px; }
+    .mt-24 { margin-top: 24px; }
+    .mb-8  { margin-bottom: 8px; }
+
+    /* ── Divider ────────────────────────────────────────────────────────────── */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border-dim);
+      margin: 24px 0;
+    }
+
+    /* ── Badge ──────────────────────────────────────────────────────────────── */
+    .badge {
+      display: inline-block;
+      padding: 3px 9px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .badge-accent   { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent-glow); }
+    .badge-muted    { background: rgba(255,255,255,0.05); color: var(--muted); border: 1px solid var(--border); }
+    .badge-reversed { background: rgba(239,68,68,0.15); color: #fca5a5; border: 1px solid rgba(239,68,68,0.3); }
+
+    {% block styles %}{% endblock %}
+  </style>
+</head>
+<body>
+
+  <nav class="site-nav">
+    <a href="{{ url_for('main.dashboard') if current_user.is_authenticated else url_for('auth.login') }}" class="nav-logo">
+      <span class="star">✦</span>Tarot
+    </a>
+    <div class="nav-links">
+      {% if current_user.is_authenticated %}
+        <span class="nav-user">{{ current_user.username }}</span>
+        <a href="{{ url_for('main.dashboard') }}"    class="nav-link">Dashboard</a>
+        <a href="{{ url_for('main.reading_setup') }}" class="nav-link">New Reading</a>
+        <a href="{{ url_for('main.history') }}"       class="nav-link">History</a>
+        <a href="{{ url_for('main.settings') }}"      class="nav-link">Settings</a>
+        <a href="{{ url_for('auth.logout') }}"         class="nav-link">Log Out</a>
+      {% else %}
+        <a href="{{ url_for('auth.login') }}"    class="nav-link">Log In</a>
+        <a href="{{ url_for('auth.register') }}" class="nav-link">Register</a>
+      {% endif %}
+    </div>
+  </nav>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-zone">
+        {% for cat, msg in messages %}
+          <div class="flash flash-{{ cat }}">{{ msg }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

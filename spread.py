@@ -1,4 +1,5 @@
 import argparse
+import os
 import random
 from typing import List
 
@@ -189,6 +190,10 @@ def main() -> None:
     if args.reversal_prob is not None and not (0.0 <= args.reversal_prob <= 1.0):
         raise SystemExit("--reversal-prob must be between 0 and 1")
 
+    api_key = os.getenv("ANTHROPIC_API_KEY", "")
+    if args.interpret and not api_key:
+        raise SystemExit("ANTHROPIC_API_KEY environment variable is required for interpretations.")
+
     if args.spread == "3card":
         cards = draw_three_card_spread(
             deck,
@@ -197,7 +202,7 @@ def main() -> None:
         )
         print("Three-card spread:")
         if args.interpret:
-            interpreter = TarotInterpreter("3card", model=args.model)
+            interpreter = TarotInterpreter("3card", api_key, model=args.model)
             prior: List[dict] = []
             for idx, card in enumerate(cards, start=1):
                 interpretation = interpreter.interpret_card(
@@ -255,7 +260,7 @@ def main() -> None:
         )
         print("Celtic Cross spread:")
         if args.interpret:
-            interpreter = TarotInterpreter("celticcross", model=args.model)
+            interpreter = TarotInterpreter("celticcross", api_key, model=args.model)
             prior: List[dict] = []
             for idx, card in enumerate(cards, start=1):
                 interpretation = interpreter.interpret_card(

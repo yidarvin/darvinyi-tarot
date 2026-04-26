@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Create Account — Tarot{% endblock %}
+
+{% block styles %}
+.auth-wrap {
+  min-height: calc(100vh - var(--nav-h));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+}
+.auth-card {
+  width: 100%;
+  max-width: 500px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 44px 40px;
+}
+.auth-eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+.auth-title    { font-size: 26px; font-weight: 700; margin-bottom: 6px; }
+.auth-subtitle { font-size: 14px; color: var(--muted); margin-bottom: 36px; }
+.auth-footer   { text-align: center; margin-top: 28px; font-size: 14px; color: var(--muted); }
+.auth-footer a { color: var(--accent); text-decoration: none; }
+.auth-footer a:hover { text-decoration: underline; }
+.api-key-note {
+  background: var(--accent-dim);
+  border: 1px solid var(--accent-glow);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 6px;
+  line-height: 1.55;
+}
+.api-key-note strong { color: var(--text); }
+{% endblock %}
+
+{% block content %}
+<div class="auth-wrap">
+  <div class="auth-card">
+    <p class="auth-eyebrow">✦ Welcome</p>
+    <h1 class="auth-title">Create your account</h1>
+    <p class="auth-subtitle">Begin your personal tarot practice.</p>
+
+    <form method="POST" action="{{ url_for('auth.register') }}" novalidate>
+      {{ form.hidden_tag() }}
+
+      <div class="field{{ ' has-error' if form.email.errors else '' }}">
+        {{ form.email.label(class="field-label") }}
+        {{ form.email(class="field-input", placeholder="you@example.com", autocomplete="email") }}
+        {% for e in form.email.errors %}<span class="field-error">{{ e }}</span>{% endfor %}
+      </div>
+
+      <div class="field{{ ' has-error' if form.username.errors else '' }}">
+        {{ form.username.label(class="field-label") }}
+        {{ form.username(class="field-input", placeholder="yourname", autocomplete="username") }}
+        {% for e in form.username.errors %}<span class="field-error">{{ e }}</span>{% endfor %}
+      </div>
+
+      <div class="field{{ ' has-error' if form.password.errors else '' }}">
+        {{ form.password.label(class="field-label") }}
+        {{ form.password(class="field-input", placeholder="Min. 8 characters", autocomplete="new-password") }}
+        {% for e in form.password.errors %}<span class="field-error">{{ e }}</span>{% endfor %}
+      </div>
+
+      <div class="field{{ ' has-error' if form.confirm_password.errors else '' }}">
+        {{ form.confirm_password.label(class="field-label") }}
+        {{ form.confirm_password(class="field-input", autocomplete="new-password") }}
+        {% for e in form.confirm_password.errors %}<span class="field-error">{{ e }}</span>{% endfor %}
+      </div>
+
+      <div class="field{{ ' has-error' if form.anthropic_api_key.errors else '' }}">
+        {{ form.anthropic_api_key.label(class="field-label") }}
+        {{ form.anthropic_api_key(class="field-input", placeholder="sk-ant-…", autocomplete="off", spellcheck="false") }}
+        {% for e in form.anthropic_api_key.errors %}<span class="field-error">{{ e }}</span>{% endfor %}
+        <div class="api-key-note">
+          <strong>Your key is encrypted</strong> using AES-256 (Fernet) before being stored.
+          It is used only to call Claude on your behalf and is never shared, logged, or visible to anyone else.
+          Get a key at <strong>console.anthropic.com</strong>.
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block" style="margin-top: 8px;">
+        Create Account →
+      </button>
+    </form>
+
+    <div class="auth-footer">
+      Already have an account? <a href="{{ url_for('auth.login') }}">Log in</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

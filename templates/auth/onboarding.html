@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Getting to Know You — Tarot{% endblock %}
+
+{% block styles %}
+.onboarding-wrap {
+  min-height: calc(100vh - var(--nav-h));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+}
+.onboarding-card {
+  width: 100%;
+  max-width: 600px;
+}
+.progress-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 28px;
+}
+.progress-label {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.progress-count {
+  font-size: 13px;
+  color: var(--muted);
+}
+.progress-bar {
+  width: 100%;
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  margin-bottom: 48px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+.question-eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 14px;
+}
+.question-text {
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--text);
+  margin-bottom: 36px;
+  /* subtle entrance */
+  animation: questionIn 0.5s ease both;
+}
+@keyframes questionIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.onboarding-form textarea.field-input {
+  min-height: 120px;
+  font-size: 16px;
+  line-height: 1.6;
+}
+.onboarding-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+}
+.onboarding-footer .step-hint {
+  font-size: 13px;
+  color: var(--muted);
+}
+{% endblock %}
+
+{% block content %}
+<div class="onboarding-wrap">
+  <div class="onboarding-card">
+
+    <div class="progress-header">
+      <span class="progress-label">✦ Getting to know you</span>
+      <span class="progress-count">{{ step }} of {{ total }}</span>
+    </div>
+    <div class="progress-bar">
+      <div class="progress-fill" style="width: {{ ((step - 1) / total * 100)|round|int }}%"></div>
+    </div>
+
+    <p class="question-eyebrow">Question {{ step }}</p>
+    <p class="question-text">{{ question }}</p>
+
+    <form method="POST" action="{{ url_for('auth.onboarding') }}" class="onboarding-form" novalidate>
+      {{ form.hidden_tag() }}
+
+      <div class="field{{ ' has-error' if form.answer.errors else '' }}">
+        {{ form.answer(class="field-input", placeholder="Take your time…", autofocus=true) }}
+        {% for e in form.answer.errors %}<span class="field-error">{{ e }}</span>{% endfor %}
+      </div>
+
+      <div class="onboarding-footer">
+        <span class="step-hint">
+          {% if step < total %}{{ total - step }} more question{{ 's' if (total - step) > 1 else '' }} after this{% else %}Last one{% endif %}
+        </span>
+        <button type="submit" class="btn btn-primary btn-lg">
+          {% if step < total %}Next →{% else %}Finish →{% endif %}
+        </button>
+      </div>
+    </form>
+
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Tarot{% endblock %}
+
+{% block styles %}
+.dashboard {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 48px 24px 80px;
+}
+
+/* check-in prompt */
+.checkin-card {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 32px 36px;
+  margin-bottom: 40px;
+  animation: slideDown 0.4s ease both;
+}
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.checkin-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+.checkin-text {
+  font-size: 17px;
+  line-height: 1.55;
+  color: var(--text);
+  margin-bottom: 24px;
+}
+.checkin-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+
+/* welcome header (no check-in) */
+.welcome-header { margin-bottom: 40px; }
+.welcome-eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+.welcome-title { font-size: 28px; font-weight: 700; margin-bottom: 6px; }
+.welcome-subtitle { font-size: 15px; color: var(--muted); }
+
+/* stats row */
+.stats-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 40px;
+  flex-wrap: wrap;
+}
+.stat-card {
+  flex: 1;
+  min-width: 140px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+}
+.stat-value { font-size: 28px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.stat-label { font-size: 13px; color: var(--muted); }
+
+/* last reading */
+.last-reading {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 40px;
+  text-decoration: none;
+  display: block;
+  transition: border-color 0.2s;
+}
+.last-reading:hover { border-color: var(--accent); }
+.last-reading-label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+.last-reading-title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+.last-reading-meta  { font-size: 13px; color: var(--muted); }
+
+/* quick actions */
+.actions-section h2 {
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 14px;
+}
+.action-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.action-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  text-decoration: none;
+  transition: border-color 0.2s, background 0.2s;
+}
+.action-card:hover {
+  border-color: var(--accent);
+  background: rgba(124,92,255,0.05);
+}
+.action-icon  { font-size: 24px; margin-bottom: 12px; }
+.action-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+.action-desc  { font-size: 13px; color: var(--muted); }
+{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+
+  {% if show_checkin %}
+  <!-- Post-login check-in prompt -->
+  <div class="checkin-card">
+    <p class="checkin-eyebrow">☽ Check in</p>
+    <p class="checkin-text">
+      Welcome back, <strong>{{ current_user.username }}</strong>.
+      Want to share any life updates before we draw, or jump straight into a reading?
+    </p>
+    <div class="checkin-actions">
+      <a href="{{ url_for('main.life_update') }}" class="btn btn-outline">Share an update</a>
+      <a href="{{ url_for('main.reading_setup') }}" class="btn btn-primary">Start a reading →</a>
+    </div>
+  </div>
+
+  {% else %}
+  <!-- Standard welcome -->
+  <div class="welcome-header">
+    <p class="welcome-eyebrow">✦ Your space</p>
+    <h1 class="welcome-title">Welcome back, {{ current_user.username }}.</h1>
+    <p class="welcome-subtitle">What would you like to explore today?</p>
+  </div>
+  {% endif %}
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-value">{{ reading_count }}</div>
+      <div class="stat-label">Reading{{ 's' if reading_count != 1 else '' }}</div>
+    </div>
+    {% if last_reading %}
+    <div class="stat-card">
+      <div class="stat-value" style="font-size: 18px;">{{ last_reading.created_at.strftime('%b %d') }}</div>
+      <div class="stat-label">Last reading</div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Last reading link -->
+  {% if last_reading %}
+  <a href="{{ url_for('main.reading_summary', reading_id=last_reading.id) }}" class="last-reading">
+    <div class="last-reading-label">Most recent reading</div>
+    <div class="last-reading-title">
+      {{ 'Three-Card' if last_reading.spread_type == '3card' else 'Celtic Cross' }} —
+      {{ last_reading.created_at.strftime('%B %d, %Y') }}
+    </div>
+    <div class="last-reading-meta">
+      {% if last_reading.intention %}"{{ last_reading.intention }}"{% else %}No intention set{% endif %}
+      · {{ last_reading.cards_json|length }} cards
+    </div>
+  </a>
+  {% endif %}
+
+  <!-- Quick actions -->
+  <div class="actions-section">
+    <h2>What's next</h2>
+    <div class="action-grid">
+      <a href="{{ url_for('main.reading_setup') }}" class="action-card">
+        <div class="action-icon">🃏</div>
+        <div class="action-title">New Reading</div>
+        <div class="action-desc">Draw cards and receive an interpretation</div>
+      </a>
+      <a href="{{ url_for('main.history') }}" class="action-card">
+        <div class="action-icon">📖</div>
+        <div class="action-title">Reading History</div>
+        <div class="action-desc">Revisit your past readings</div>
+      </a>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,425 @@
+{% extends "base.html" %}
+{% block title %}{{ card.title }} — Tarot{% endblock %}
+
+{% block styles %}
+/* ── Layout ─────────────────────────────────────────────────────────────────── */
+.card-reveal-page { min-height: calc(100vh - var(--nav-h)); }
+
+/* ── Progress strip ─────────────────────────────────────────────────────────── */
+.reading-progress {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 28px;
+  border-bottom: 1px solid var(--border-dim);
+  font-size: 13px;
+  color: var(--muted);
+}
+.reading-progress .spread-label { font-weight: 500; color: var(--text); }
+.reading-progress .card-count   { }
+.progress-dots {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.progress-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--border);
+  transition: background 0.2s;
+}
+.progress-dot.done    { background: var(--accent); }
+.progress-dot.current { background: var(--accent); box-shadow: 0 0 6px var(--accent-glow); }
+
+/* ── Card moment (fills viewport) ───────────────────────────────────────────── */
+.card-moment {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - var(--nav-h) - 55px);
+  padding: 48px 24px 32px;
+  text-align: center;
+}
+
+/* ── Card image ─────────────────────────────────────────────────────────────── */
+.card-reveal-outer {
+  animation: cardReveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  margin-bottom: 28px;
+}
+@keyframes cardReveal {
+  0%   { opacity: 0; transform: translateY(52px) scale(0.91); }
+  100% { opacity: 1; transform: translateY(0)    scale(1); }
+}
+.card-rotation-wrap {
+  position: relative;
+  display: inline-block;
+}
+.card-rotation-wrap.reversed {
+  transform: rotate(180deg);
+}
+.card-img {
+  display: block;
+  width: clamp(140px, 22vw, 210px);
+  height: auto;
+  border-radius: 14px;
+  box-shadow:
+    var(--shadow),
+    0 0 60px rgba(124,92,255,0.18);
+  border: 1px solid var(--border);
+}
+.card-img-fallback {
+  width: clamp(140px, 22vw, 210px);
+  height: calc(clamp(140px, 22vw, 210px) * 1.73);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  font-size: 15px;
+  color: var(--muted);
+  padding: 16px;
+  text-align: center;
+  line-height: 1.4;
+}
+/* reversed badge on card (only shown when not rotated — use original orientation) */
+.card-overlay-badge {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  background: rgba(239,68,68,0.9);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+/* ── Card info (name, position) ─────────────────────────────────────────────── */
+.card-info {
+  animation: fadeUp 0.5s ease 0.45s both;
+  max-width: 480px;
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.card-position-label {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.card-name {
+  font-size: 24px;
+  font-weight: 700;
+}
+.card-represents {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.scroll-hint {
+  margin-top: 32px;
+  color: var(--muted);
+  font-size: 13px;
+  animation: bounce 2s ease 1.5s infinite;
+}
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(5px); }
+}
+
+/* ── Interpretation section ─────────────────────────────────────────────────── */
+.interp-section {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 56px 28px 40px;
+  /* Fade in after card lands */
+  animation: fadeUp 0.6s ease 0.75s both;
+}
+.interp-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 18px;
+}
+.interp-text {
+  font-size: 16px;
+  line-height: 1.75;
+  color: var(--text);
+  white-space: pre-wrap;
+  min-height: 60px;
+}
+.interp-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: var(--accent);
+  vertical-align: text-bottom;
+  margin-left: 2px;
+  animation: blink 0.9s step-end infinite;
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+.interp-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.interp-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Error box ──────────────────────────────────────────────────────────────── */
+.interp-error {
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  border-radius: 10px;
+  padding: 20px 24px;
+  margin-top: 8px;
+}
+.interp-error-icon { font-size: 20px; margin-bottom: 8px; }
+.interp-error-msg  { font-size: 14px; color: #fca5a5; margin-bottom: 14px; line-height: 1.5; }
+.interp-error-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* ── Continue zone ──────────────────────────────────────────────────────────── */
+.continue-zone {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 24px 28px 80px;
+  border-top: 1px solid var(--border-dim);
+}
+.continue-btn {
+  transition: opacity 0.4s ease, background 0.15s;
+}
+.continue-btn.pending {
+  opacity: 0.2;
+  pointer-events: none;
+  cursor: default;
+}
+{% endblock %}
+
+{% block content %}
+<div class="card-reveal-page">
+
+  <!-- Progress strip -->
+  <div class="reading-progress">
+    <span class="spread-label">
+      {{ 'Three-Card' if reading.spread_type == '3card' else 'Celtic Cross' }}
+      {% if reading.intention %}&nbsp;· <em style="font-weight:400;color:var(--muted)">"{{ reading.intention }}"</em>{% endif %}
+    </span>
+    <div class="progress-dots">
+      {% for i in range(1, total + 1) %}
+        <div class="progress-dot
+          {% if i < card_index %} done
+          {% elif i == card_index %} current
+          {% endif %}"></div>
+      {% endfor %}
+    </div>
+    <span class="card-count">Card {{ card_index }} of {{ total }}</span>
+  </div>
+
+  <!-- Card moment (fills viewport before scrolling) -->
+  <div class="card-moment">
+
+    <!-- Card image with reveal animation -->
+    <div class="card-reveal-outer">
+      <div class="card-rotation-wrap {% if card.orientation == 'reversed' %}reversed{% endif %}">
+        {% if card.filename %}
+          <img class="card-img"
+               src="{{ url_for('main.serve_card_image', filename=card.filename) }}"
+               alt="{{ card.title }}" />
+        {% else %}
+          <div class="card-img-fallback">{{ card.title }}</div>
+        {% endif %}
+        {% if card.orientation == 'reversed' %}
+          <span class="card-overlay-badge">Reversed</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Card metadata -->
+    <div class="card-info">
+      <p class="card-position-label">{{ card.position_label }}</p>
+      <div class="card-title-row">
+        <span class="card-name">{{ card.title }}</span>
+        {% if card.orientation == 'reversed' %}
+          <span class="badge badge-reversed">Reversed</span>
+        {% endif %}
+      </div>
+      {% if card.represents %}
+        <p class="card-represents">{{ card.represents }}</p>
+      {% endif %}
+    </div>
+
+    <p class="scroll-hint">↓ scroll for interpretation</p>
+  </div>
+
+  <!-- Interpretation -->
+  <div class="interp-section"
+       id="interp-section"
+       data-stream-url="{{ stream_url }}"
+       data-has-existing="{{ 'true' if interpretation else 'false' }}"
+       data-settings-url="{{ url_for('main.settings') }}">
+
+    <p class="interp-eyebrow">✦ Interpretation</p>
+
+    <div id="interp-loading" class="interp-loading" {% if interpretation %}style="display:none"{% endif %}>
+      <div class="interp-spinner"></div>
+      <span>Reading the cards…</span>
+    </div>
+
+    <div id="interp-text" class="interp-text">{{ interpretation }}</div>
+
+    <div id="interp-error" class="interp-error" style="display:none">
+      <div class="interp-error-icon">⚠</div>
+      <p id="interp-error-msg" class="interp-error-msg"></p>
+      <div id="interp-error-actions" class="interp-error-actions"></div>
+    </div>
+  </div>
+
+  <!-- Continue button -->
+  <div class="continue-zone">
+    <a id="continue-btn"
+       href="{{ next_url }}"
+       class="btn btn-primary btn-lg {% if not interpretation %}pending{% endif %}">
+      {% if is_last %}See your full reading →{% else %}Continue →{% endif %}
+    </a>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var section      = document.getElementById('interp-section');
+  var textEl       = document.getElementById('interp-text');
+  var loadingEl    = document.getElementById('interp-loading');
+  var errorEl      = document.getElementById('interp-error');
+  var errorMsgEl   = document.getElementById('interp-error-msg');
+  var errorActEl   = document.getElementById('interp-error-actions');
+  var continueBtn  = document.getElementById('continue-btn');
+  var streamUrl    = section.dataset.streamUrl;
+  var settingsUrl  = section.dataset.settingsUrl;
+  var hasExisting  = section.dataset.hasExisting === 'true';
+  var cursor       = null;
+
+  function addCursor() {
+    if (cursor) return;
+    cursor = document.createElement('span');
+    cursor.className = 'interp-cursor';
+    textEl.appendChild(cursor);
+  }
+
+  function removeCursor() {
+    if (cursor) { cursor.remove(); cursor = null; }
+  }
+
+  function enableContinue() {
+    continueBtn.classList.remove('pending');
+  }
+
+  function showError(code) {
+    loadingEl.style.display = 'none';
+    removeCursor();
+    errorEl.style.display = '';
+
+    var msg, actionsHtml;
+    if (code === 'nokey' || code === 'authfail') {
+      msg = code === 'nokey'
+        ? 'No Anthropic API key found on your account.'
+        : 'Your Anthropic API key was rejected. It may be invalid or revoked.';
+      actionsHtml =
+        '<a href="' + settingsUrl + '" class="btn btn-outline btn-sm">Update API Key</a>' +
+        '<button onclick="window.location.reload()" class="btn btn-ghost btn-sm">Retry</button>';
+    } else if (code === 'ratelimit') {
+      msg = 'The API is temporarily busy (rate limit). Please wait a moment and try again.';
+      actionsHtml = '<button onclick="window.location.reload()" class="btn btn-outline btn-sm">Try again</button>';
+    } else {
+      msg = 'The interpretation could not be loaded. Please try again.';
+      actionsHtml = '<button onclick="window.location.reload()" class="btn btn-outline btn-sm">Try again</button>';
+    }
+
+    errorMsgEl.textContent = msg;
+    errorActEl.innerHTML = actionsHtml;
+    enableContinue();
+  }
+
+  if (hasExisting) {
+    enableContinue();
+    return;
+  }
+
+  // Stream from server
+  addCursor();
+  var accumulated = '';
+  var source = new EventSource(streamUrl);
+
+  source.onmessage = function (e) {
+    var chunk = e.data;
+
+    if (chunk === '[DONE]') {
+      source.close();
+      removeCursor();
+      loadingEl.style.display = 'none';
+      enableContinue();
+      return;
+    }
+
+    // Typed error codes: [ERROR], [ERROR:nokey], [ERROR:authfail], [ERROR:ratelimit]
+    var errorMatch = chunk.match(/^\[ERROR(?::([a-z]+))?\]$/);
+    if (errorMatch) {
+      source.close();
+      showError(errorMatch[1] || 'generic');
+      return;
+    }
+
+    // First chunk — hide the loading indicator
+    if (!accumulated) {
+      loadingEl.style.display = 'none';
+      removeCursor();
+    }
+
+    accumulated += chunk;
+    textEl.textContent = accumulated;
+    addCursor();
+  };
+
+  source.onerror = function () {
+    source.close();
+    if (!accumulated) {
+      showError('generic');
+    } else {
+      removeCursor();
+      loadingEl.style.display = 'none';
+      enableContinue();
+    }
+  };
+})();
+</script>
+{% endblock %}

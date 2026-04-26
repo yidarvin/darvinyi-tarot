@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}Reading History — Tarot{% endblock %}
+
+{% block styles %}
+.history-page { max-width: 860px; margin: 0 auto; padding: 44px 24px 80px; }
+
+.history-header { margin-bottom: 36px; }
+.history-eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+.history-title { font-size: 28px; font-weight: 700; }
+
+/* Grid */
+.reading-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+.reading-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 22px;
+  text-decoration: none;
+  color: var(--text);
+  transition: border-color 0.18s, background 0.18s, transform 0.15s;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.reading-card:hover {
+  border-color: var(--accent);
+  background: rgba(124,92,255,0.04);
+  transform: translateY(-2px);
+}
+.reading-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.reading-date {
+  font-size: 12px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.spread-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 20px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.badge-3card     { background: rgba(124,92,255,0.15); color: var(--accent); border: 1px solid rgba(124,92,255,0.3); }
+.badge-celticcross { background: rgba(255,200,100,0.12); color: #fcd270; border: 1px solid rgba(255,200,100,0.25); }
+
+.reading-first-card {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.reading-intention {
+  font-size: 13px;
+  color: var(--muted);
+  font-style: italic;
+  line-height: 1.4;
+  /* clamp to 2 lines */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.reading-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.reading-card-meta .dot { width: 3px; height: 3px; border-radius: 50%; background: var(--border); }
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 80px 24px;
+  color: var(--muted);
+}
+.empty-state-icon { font-size: 40px; margin-bottom: 16px; }
+.empty-state h2   { font-size: 20px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+.empty-state p    { font-size: 15px; margin-bottom: 28px; }
+{% endblock %}
+
+{% block content %}
+<div class="history-page">
+
+  <div class="history-header">
+    <p class="history-eyebrow">✦ Your practice</p>
+    <h1 class="history-title">Reading History</h1>
+  </div>
+
+  {% if readings %}
+  <div class="reading-grid">
+    {% for r in readings %}
+    <a href="{{ url_for('main.reading_summary', reading_id=r.id) }}" class="reading-card">
+
+      <div class="reading-card-top">
+        <span class="spread-badge badge-{{ r.spread_type }}">
+          {{ '3-Card' if r.spread_type == '3card' else 'Celtic Cross' }}
+        </span>
+        <span class="reading-date">{{ r.created_at.strftime('%b %d, %Y') }}</span>
+      </div>
+
+      {% if r.cards_json %}
+        <div class="reading-first-card">
+          {{ r.cards_json[0].title }}
+          {% if r.cards_json[0].orientation == 'reversed' %}
+            <span class="badge badge-reversed" style="font-size:10px;vertical-align:middle;">↓</span>
+          {% endif %}
+        </div>
+      {% endif %}
+
+      {% if r.intention %}
+        <div class="reading-intention">"{{ r.intention }}"</div>
+      {% endif %}
+
+      <div class="reading-card-meta">
+        <span>{{ r.cards_json|length }} cards</span>
+        {% if r.narrative %}
+          <div class="dot"></div>
+          <span>Has summary</span>
+        {% endif %}
+      </div>
+
+    </a>
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-state-icon">☽</div>
+    <h2>No readings yet</h2>
+    <p>Your reading history will appear here once you draw your first spread.</p>
+    <a href="{{ url_for('main.reading_setup') }}" class="btn btn-primary btn-lg">
+      Start your first reading →
+    </a>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

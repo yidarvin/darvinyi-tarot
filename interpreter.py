@@ -1,10 +1,10 @@
+import json
 import os
 import re
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
-from dotenv import load_dotenv
-from openai import OpenAI, BadRequestError
+import anthropic
 
 
 @dataclass
@@ -123,26 +123,58 @@ def parse_tarot_markdown(md_path: Optional[str] = None) -> Dict[str, Dict[str, L
     return cards
 
 
-class TarotInterpreter:
-    """Interprets tarot draws incrementally using the OpenAI API.
+# ── Interpreter ────────────────────────────────────────────────────────────────
 
-    Each call to interpret_card considers:
-    - The selected spread's position semantics from spread.MD
-    - The card's keyword meanings from tarot.MD
+_CARD_SYSTEM = """\
+You are a perceptive, grounded tarot reader interpreting a single card in context.
+Address all four of the following in flowing prose — do not use headers or bullet points:
+
+1. The card's intrinsic meaning in its current orientation (upright or reversed), \
+drawing on its keywords.
+2. What this specific position in the spread typically asks of the querent.
+3. Given what you know about this person from their profile, what story is this \
+card telling them right now?
+4. How this card connects to or builds upon the cards already drawn in this reading.
+
+Write in a warm, direct second-person voice. 4–7 sentences total.\
+"""
+
+_SUMMARY_SYSTEM = """\
+You are a perceptive, grounded tarot reader giving a closing synthesis of a full spread.
+Weave all the cards drawn into a single cohesive narrative — the arc, the tensions, \
+and the gifts this reading reveals as a whole.
+Draw meaningfully on what you know about this person from their profile where it \
+illuminates the reading.
+Close with one grounding reflection or open question for the querent to sit with — \
+something that invites honest self-examination rather than a tidy answer.
+
+Write in a warm, direct second-person voice. 6–10 sentences. No bullet points or headers.\
+"""
+
+
+class TarotInterpreter:
+    """Interprets tarot draws incrementally using the Anthropic API.
+
+    Each interpret_card call considers:
+    - The card's upright/reversed keyword meanings from tarot.MD
+    - The spread position's semantics from spread.MD
+    - A string summary of the user's profile context
     - All prior cards and their interpretations in the current spread
+
+    summarize_spread weaves all cards and user context into a closing narrative.
     """
 
     def __init__(
         self,
         spread_key: str,
+        anthropic_api_key: str,
         *,
         spread_md_path: Optional[str] = None,
         tarot_md_path: Optional[str] = None,
-        model: str = "gpt-5",
+        model: str = "claude-sonnet-4-20250514",
         temperature: float = 1.0,
     ) -> None:
-        load_dotenv()
-        self.client = OpenAI()
+        self.client = anthropic.Anthropic(api_key=anthropic_api_key)
         self.model = model
         self.temperature = temperature
         self.spread_key = spread_key
@@ -157,171 +189,120 @@ class TarotInterpreter:
     @staticmethod
     def _split_card_orientation(card: str) -> Tuple[str, str]:
         if card.endswith("(Reversed)"):
-            base = card.replace("(Reversed)", "").strip()
-            return base, "reversed"
+            return card.replace("(Reversed)", "").strip(), "reversed"
         return card, "upright"
 
     def _lookup_card_keywords(self, base_title: str) -> Dict[str, List[str]]:
         return self.card_meanings.get(base_title, {"upright": [], "reversed": []})
 
-    def _build_messages(
+    def _call(self, system: str, user_content: str, *, max_tokens: int) -> str:
+        """Make a single Anthropic messages.create call and return the text."""
+        kwargs: Dict = {
+            "model": self.model,
+            "max_tokens": max_tokens,
+            "system": system,
+            "messages": [{"role": "user", "content": user_content}],
+        }
+        if self.temperature != 1.0:
+            kwargs["temperature"] = self.temperature
+        msg = self.client.messages.create(**kwargs)
+        return msg.content[0].text.strip()
+
+    # ── Card interpretation ────────────────────────────────────────────────────
+
+    def _card_payload(
         self,
         *,
         card: str,
         position_index: int,
-        prior: List[Dict[str, str]],
-    ) -> List[Dict[str, str]]:
+        prior: List[Dict],
+        user_context: str,
+    ) -> str:
         base_title, orientation = self._split_card_orientation(card)
         keywords = self._lookup_card_keywords(base_title)
-
         pos = self.positions.get(position_index)
-        pos_label = pos.label if pos else f"Card {position_index}"
-        pos_coords = pos.coordinates if pos else (0, 0)
-        pos_represents = pos.represents if pos else ""
 
-        prior_slim = [
-            {
-                "position_index": p.get("position_index"),
-                "position_label": p.get("position_label"),
-                "card": p.get("card"),
-                "orientation": p.get("orientation"),
-                "summary": p.get("interpretation", ""),
-            }
-            for p in prior
-        ]
-
-        system_prompt = (
-            "You are a concise, insightful tarot interpreter."
-            " Use the spread position semantics, the card's upright/reversed keywords,"
-            " and the prior cards' interpretations to synthesize a relevant, practical interpretation."
-            " Keep it to 3-6 sentences. Avoid generic platitudes; be specific to the position."
-        )
-
-        user_content = {
-            "spread_position": {
-                "index": position_index,
-                "label": pos_label,
-                "coordinates": pos_coords,
-                "represents": pos_represents,
-            },
+        payload = {
             "card": {
                 "title": base_title,
                 "orientation": orientation,
-                "keywords": keywords.get(orientation, []),
+                "keywords_for_orientation": keywords.get(orientation, []),
                 "all_keywords": keywords,
             },
-            "prior_cards": prior_slim,
-            "instructions": "Interpret this draw for the specified position. If prior cards suggest themes, weave them in briefly."
+            "position": {
+                "index": position_index,
+                "label": pos.label if pos else f"Card {position_index}",
+                "represents": pos.represents if pos else "",
+            },
+            "user_context": user_context or "No profile context available.",
+            "prior_cards": [
+                {
+                    "position_label": p.get("position_label"),
+                    "card": p.get("card"),
+                    "orientation": p.get("orientation"),
+                    "interpretation": p.get("interpretation", ""),
+                }
+                for p in prior
+            ],
         }
-
-        # Minimal JSON-ish text payload keeps model input stable across calls
-        import json
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": json.dumps(user_content, ensure_ascii=False)},
-        ]
-        return messages
+        return json.dumps(payload, ensure_ascii=False)
 
     def interpret_card(
         self,
         *,
         card: str,
         position_index: int,
-        prior_interpretations: Optional[List[Dict[str, str]]] = None,
+        prior_interpretations: Optional[List[Dict]] = None,
+        user_context: str = "",
     ) -> str:
-        messages = self._build_messages(
+        payload = self._card_payload(
             card=card,
             position_index=position_index,
             prior=prior_interpretations or [],
+            user_context=user_context,
         )
+        return self._call(_CARD_SYSTEM, payload, max_tokens=1024)
 
-        # Prepare parameters; avoid passing temperature when at default (1.0)
-        params = {
-            "model": self.model,
-            "messages": messages,
-        }
-        if self.temperature is not None and self.temperature != 1.0:
-            params["temperature"] = self.temperature
+    # ── Spread summary ─────────────────────────────────────────────────────────
 
-        try:
-            completion = self.client.chat.completions.create(**params)
-        except BadRequestError as e:
-            # Retry without temperature if it's rejected by the model
-            if "temperature" in str(e):
-                params.pop("temperature", None)
-                completion = self.client.chat.completions.create(**params)
-            else:
-                raise
-
-        return (completion.choices[0].message.content or "").strip()
-
-    def _build_summary_messages(self, prior: List[Dict[str, str]]) -> List[Dict[str, str]]:
-        # Prepare a compact representation of spread positions
-        positions_payload = [
+    def _summary_payload(
+        self,
+        prior: List[Dict],
+        user_context: str,
+    ) -> str:
+        positions_info = [
             {
                 "index": p.index,
                 "label": p.label,
-                "coordinates": p.coordinates,
                 "represents": p.represents,
             }
             for p in sorted(self.positions.values(), key=lambda x: x.index)
         ]
 
-        # Use prior cards and their interpretations
-        prior_payload = [
-            {
-                "position_index": item.get("position_index"),
-                "position_label": item.get("position_label"),
-                "card": item.get("card"),
-                "orientation": item.get("orientation"),
-                "interpretation": item.get("interpretation", ""),
-            }
-            for item in prior
-        ]
-
-        system_prompt = (
-            "You are a concise, insightful tarot interpreter."
-            " Provide a cohesive summary that synthesizes the entire spread."
-            " Identify central themes, connecting threads, practical guidance, and likely trajectory."
-            " Resolve any tensions between positions or reversals."
-            " Output 5-8 sentences, no bullet points."
-        )
-
-        import json
-        user_content = {
+        payload = {
             "spread": {
                 "key": self.spread_key,
-                "positions": positions_payload,
+                "positions": positions_info,
             },
-            "cards": prior_payload,
-            "instructions": "Write a final summary for the reading."
+            "cards": [
+                {
+                    "position_index": item.get("position_index"),
+                    "position_label": item.get("position_label"),
+                    "card": item.get("card"),
+                    "orientation": item.get("orientation"),
+                    "interpretation": item.get("interpretation", ""),
+                }
+                for item in prior
+            ],
+            "user_context": user_context or "No profile context available.",
         }
+        return json.dumps(payload, ensure_ascii=False)
 
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": json.dumps(user_content, ensure_ascii=False)},
-        ]
-        return messages
-
-    def summarize_spread(self, prior_interpretations: List[Dict[str, str]]) -> str:
-        messages = self._build_summary_messages(prior_interpretations)
-
-        params = {
-            "model": self.model,
-            "messages": messages,
-        }
-        if self.temperature is not None and self.temperature != 1.0:
-            params["temperature"] = self.temperature
-
-        try:
-            completion = self.client.chat.completions.create(**params)
-        except BadRequestError as e:
-            if "temperature" in str(e):
-                params.pop("temperature", None)
-                completion = self.client.chat.completions.create(**params)
-            else:
-                raise
-
-        return (completion.choices[0].message.content or "").strip()
-
-
+    def summarize_spread(
+        self,
+        prior_interpretations: List[Dict],
+        *,
+        user_context: str = "",
+    ) -> str:
+        payload = self._summary_payload(prior_interpretations, user_context)
+        return self._call(_SUMMARY_SYSTEM, payload, max_tokens=2048)
