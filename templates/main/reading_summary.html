@@ -149,6 +149,22 @@
   color: var(--muted);
   font-style: italic;
 }
+.narrative-loading {
+  font-size: 14px;
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.narrative-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
 
 /* Footer actions */
 .summary-actions {
@@ -224,11 +240,14 @@
   <!-- Full narrative -->
   <div class="narrative-section">
     <p class="narrative-eyebrow">☽ Overall reading</p>
-    {% if reading.narrative %}
-      <p class="narrative-text">{{ reading.narrative }}</p>
-    {% else %}
-      <p class="narrative-empty">Narrative not yet generated.</p>
-    {% endif %}
+    <p id="narrative-text" class="narrative-text" {% if not reading.narrative %}style="display:none"{% endif %}>{{ reading.narrative or '' }}</p>
+    <p id="narrative-empty" class="narrative-empty" {% if reading.narrative %}style="display:none"{% endif %}>Narrative not yet generated.</p>
+    <p id="narrative-loading" class="narrative-loading" {% if reading.narrative %}style="display:none"{% endif %}>
+      <span class="narrative-spinner"></span>
+      Generating your full narrative...
+    </p>
+    <input type="hidden" id="summary-generate-url" value="{{ url_for('main.reading_summary_generate', reading_id=reading.id) }}" />
+    <input type="hidden" id="csrf-token" value="{{ csrf_token() }}" />
   </div>
 
   <!-- Actions -->
@@ -239,4 +258,48 @@
   </div>
 
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var narrativeText = document.getElementById('narrative-text');
+  var narrativeEmpty = document.getElementById('narrative-empty');
+  var narrativeLoading = document.getElementById('narrative-loading');
+  var generateUrl = document.getElementById('summary-generate-url').value;
+  var csrfToken = document.getElementById('csrf-token').value;
+
+  if (narrativeText && narrativeText.textContent.trim()) {
+    return;
+  }
+
+  fetch(generateUrl, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': csrfToken
+    },
+    body: '{}'
+  })
+    .then(function (res) { return res.json(); })
+    .then(function (data) {
+      if (data && data.ok && data.narrative) {
+        narrativeText.textContent = data.narrative;
+        narrativeText.style.display = '';
+        narrativeEmpty.style.display = 'none';
+      } else {
+        narrativeEmpty.textContent = 'Narrative generation is still pending. Please refresh in a moment.';
+        narrativeEmpty.style.display = '';
+      }
+    })
+    .catch(function () {
+      narrativeEmpty.textContent = 'Could not generate the narrative right now. Please refresh and try again.';
+      narrativeEmpty.style.display = '';
+    })
+    .finally(function () {
+      narrativeLoading.style.display = 'none';
+    });
+})();
+</script>
 {% endblock %}

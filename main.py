@@ -18,6 +18,7 @@ from typing import Dict, List, Optional, Tuple
 import anthropic as _anthropic
 from flask import (
     Blueprint,
+    jsonify,
     Response,
     abort,
     flash,
@@ -107,6 +108,8 @@ _CARD_WIDTH = 140
 _CARD_HEIGHT = 240
 _GAP_X = 24
 _GAP_Y = 24
+_CROSSING_CARD_OFFSET_X = 20
+_CROSSING_CARD_OFFSET_Y = 14
 
 
 def _split_card_orientation(card: str) -> Tuple[str, str]:
@@ -125,6 +128,18 @@ def _card_filename(title: str) -> Optional[str]:
         if num and prefix:
             return f"{prefix}{num:02d}.jpg"
     return None
+
+
+def _board_dimensions_from_cards(cards: List[Dict]) -> Dict[str, int]:
+    """Compute board dimensions from stored pixel coordinates."""
+    if not cards:
+        return {"width": 600, "height": 360}
+    max_left = max(int(c.get("left", 0)) for c in cards)
+    max_top = max(int(c.get("top", 0)) for c in cards)
+    return {
+        "width": max_left + _CARD_WIDTH,
+        "height": max_top + _CARD_HEIGHT,
+    }
 
 
 # ── Forms ──────────────────────────────────────────────────────────────────────
@@ -325,6 +340,15 @@ def reading_start():
         title, orientation = _split_card_orientation(card)
         pos = positions.get(idx)
         coord = pos.coordinates if pos else (0, 0)
+        left = (coord[0] - min_x) * step_x
+        top = (max_y - coord[1]) * step_y
+
+        # In Celtic Cross, Card 2 traditionally crosses Card 1. Apply a subtle
+        # pixel offset so both cards remain visible instead of perfectly stacked.
+        if spread_type == "celticcross" and idx == 2:
+            left += _CROSSING_CARD_OFFSET_X
+            top += _CROSSING_CARD_OFFSET_Y
+
         cards_json.append(
             {
                 "index": idx,
@@ -334,8 +358,8 @@ def reading_start():
                 "position_label": pos.label if pos else f"Card {idx}",
                 "represents": pos.represents if pos else "",
                 "filename": _card_filename(title),
-                "left": (coord[0] - min_x) * step_x,
-                "top": (max_y - coord[1]) * step_y,
+                "left": left,
+                "top": top,
                 "interpretation": "",
             }
         )
@@ -382,6 +406,7 @@ def reading_card(reading_id: int, card_index: int):
         abort(404)
 
     card_data = cards[card_index - 1]
+    board = _board_dimensions_from_cards(cards)
     is_last = card_index == total
     next_url = (
         url_for("main.reading_card", reading_id=reading_id, card_index=card_index + 1)
@@ -405,6 +430,8 @@ def reading_card(reading_id: int, card_index: int):
             reading_id=reading_id,
             card_index=card_index,
         ),
+        cards=cards,
+        board=board,
     )
 
 
@@ -503,42 +530,6 @@ def reading_card_stream(reading_id: int, card_index: int):
 @login_required
 def reading_summary(reading_id: int):
     reading = _get_reading_or_403(reading_id)
-    user_context = _build_user_context(current_user.id)
-
-    # Ensure every card has an interpretation before we summarise.
-    # A user could arrive here without having clicked through all cards.
-    cards = list(reading.cards_json)
-    missing_interp = any(not c.get("interpretation") for c in cards)
-    if missing_interp:
-        try:
-            interpreter = _make_interpreter(reading.spread_type)
-            for i, card in enumerate(cards):
-                if not card.get("interpretation"):
-                    prior = _prior_from_cards(cards, i)
-                    interp = interpreter.interpret_card(
-                        card=card["card"],
-                        position_index=card["index"],
-                        prior_interpretations=prior,
-                        user_context=user_context,
-                    )
-                    cards[i] = {**card, "interpretation": interp}
-            reading.cards_json = cards
-            flag_modified(reading, "cards_json")
-            db.session.commit()
-        except Exception:
-            pass  # show summary with whatever interpretations exist
-
-    # Generate narrative if not yet stored
-    if not reading.narrative:
-        try:
-            interpreter = _make_interpreter(reading.spread_type)
-            prior = _prior_from_cards(cards, len(cards))
-            reading.narrative = interpreter.summarize_spread(
-                prior, user_context=user_context
-            )
-            db.session.commit()
-        except Exception:
-            pass
 
     board = session.get("board", {"width": 800, "height": 500})
 
@@ -548,6 +539,39 @@ def reading_summary(reading_id: int):
         cards=reading.cards_json,
         board=board,
     )
+
+
+@bp.post("/reading/<int:reading_id>/summary/generate")
+@login_required
+def reading_summary_generate(reading_id: int):
+    reading = _get_reading_or_403(reading_id)
+    if reading.narrative:
+        return jsonify({"ok": True, "narrative": reading.narrative, "cached": True})
+
+    cards = list(reading.cards_json or [])
+    # Keep this endpoint fast and predictable: only generate once all per-card
+    # interpretations are already present from the reveal flow.
+    if any(not c.get("interpretation") for c in cards):
+        return jsonify(
+            {
+                "ok": False,
+                "error": "missing_interpretations",
+                "message": "Reveal all cards first to generate a full narrative.",
+            }
+        ), 409
+
+    try:
+        interpreter = _make_interpreter(reading.spread_type)
+        prior = _prior_from_cards(cards, len(cards))
+        reading.narrative = interpreter.summarize_spread(
+            prior, user_context=_build_user_context(current_user.id)
+        )
+        db.session.commit()
+        return jsonify({"ok": True, "narrative": reading.narrative, "cached": False})
+    except Exception:
+        return jsonify(
+            {"ok": False, "error": "generation_failed", "message": "Could not generate summary."}
+        ), 500
 
 
 # ── History ────────────────────────────────────────────────────────────────────
