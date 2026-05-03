@@ -489,16 +489,70 @@ def reading_card_stream(reading_id: int, card_index: int):
         )
 
         chunks: List[str] = []
+        full_text = ""
+
         try:
-            with interpreter.client.messages.stream(
-                model=interpreter.model,
-                max_tokens=1024,
-                system=_CARD_SYSTEM,
-                messages=[{"role": "user", "content": payload}],
-            ) as stream:
-                for text in stream.text_stream:
-                    chunks.append(text)
-                    yield _sse(text)
+            # Comments keep some proxies from buffering the whole SSE response.
+            yield ": stream-start\n\n"
+            try:
+                with interpreter.client.messages.stream(
+                    model=interpreter.model,
+                    max_tokens=1024,
+                    system=_CARD_SYSTEM,
+                    messages=[{"role": "user", "content": payload}],
+                    thinking={"type": "disabled"},
+                ) as stream:
+                    for text in stream.text_stream:
+                        chunks.append(text)
+                        ev = _sse(text)
+                        if ev:
+                            yield ev
+                    streamed = "".join(chunks).strip()
+                    full_text = streamed
+                    if not full_text:
+                        try:
+                            full_text = stream.get_final_text().strip()
+                        except Exception as exc:
+                            logger.warning(
+                                "reading_card_stream: get_final_text fallback failed reading_id=%s: %s",
+                                reading_id,
+                                exc,
+                            )
+                            full_text = ""
+                    if full_text and not streamed:
+                        yield _sse(full_text)
+            except _anthropic.BadRequestError as exc:
+                # Older models may reject explicit thinking config — retry without it.
+                logger.warning(
+                    "reading_card_stream: retrying stream without thinking=disabled (body=%s)",
+                    exc.body,
+                )
+                chunks.clear()
+                with interpreter.client.messages.stream(
+                    model=interpreter.model,
+                    max_tokens=1024,
+                    system=_CARD_SYSTEM,
+                    messages=[{"role": "user", "content": payload}],
+                ) as stream:
+                    for text in stream.text_stream:
+                        chunks.append(text)
+                        ev = _sse(text)
+                        if ev:
+                            yield ev
+                    streamed = "".join(chunks).strip()
+                    full_text = streamed
+                    if not full_text:
+                        try:
+                            full_text = stream.get_final_text().strip()
+                        except Exception as exc:
+                            logger.warning(
+                                "reading_card_stream: get_final_text fallback failed reading_id=%s: %s",
+                                reading_id,
+                                exc,
+                            )
+                            full_text = ""
+                    if full_text and not streamed:
+                        yield _sse(full_text)
         except _anthropic.AuthenticationError:
             yield "data: [ERROR:authfail]\n\n"
             return
@@ -523,11 +577,20 @@ def reading_card_stream(reading_id: int, card_index: int):
             yield _SSE_ERROR
             return
 
+        if not full_text:
+            logger.error(
+                "reading_card_stream: empty model output reading_id=%s card_index=%s model=%s",
+                reading_id,
+                card_index,
+                interpreter.model,
+            )
+            yield "data: [ERROR:empty]\n\n"
+            return
+
         yield _SSE_DONE
 
         # Persist the completed interpretation to DB.
         # stream_with_context keeps the request context alive through here.
-        full_text = "".join(chunks).strip()
         if full_text:
             updated = [
                 {**c, "interpretation": full_text} if i == card_index - 1 else c

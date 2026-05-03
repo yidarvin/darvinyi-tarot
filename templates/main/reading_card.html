@@ -475,6 +475,9 @@
     } else if (code === 'ratelimit') {
       msg = 'The API is temporarily busy (rate limit). Please wait a moment and try again.';
       actionsHtml = '<button onclick="window.location.reload()" class="btn btn-outline btn-sm">Try again</button>';
+    } else if (code === 'empty') {
+      msg = 'The model returned no text for this reading. Try again, or check your API key and model access.';
+      actionsHtml = '<button onclick="window.location.reload()" class="btn btn-outline btn-sm">Try again</button>';
     } else {
       msg = 'The interpretation could not be loaded. Please try again.';
       actionsHtml = '<button onclick="window.location.reload()" class="btn btn-outline btn-sm">Try again</button>';

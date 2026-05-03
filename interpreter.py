@@ -205,11 +205,19 @@ class TarotInterpreter:
             "max_tokens": max_tokens,
             "system": system,
             "messages": [{"role": "user", "content": user_content}],
+            "thinking": {"type": "disabled"},
         }
         if self.temperature != 1.0:
             kwargs["temperature"] = self.temperature
-        msg = self.client.messages.create(**kwargs)
-        return msg.content[0].text.strip()
+        try:
+            msg = self.client.messages.create(**kwargs)
+        except anthropic.BadRequestError:
+            kwargs.pop("thinking", None)
+            msg = self.client.messages.create(**kwargs)
+        for block in msg.content:
+            if block.type == "text":
+                return block.text.strip()
+        raise RuntimeError("Anthropic returned no text content block")
 
     # ── Card interpretation ────────────────────────────────────────────────────
 

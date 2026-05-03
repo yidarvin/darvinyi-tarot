@@ -108,16 +108,16 @@ def _generate_question(api_key: str, step: int, prior_qas: list) -> str:
             if prior_qas
             else "This is the first question — no prior context yet."
         )
-        msg = client.messages.create(
-            model=os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6"),
-            max_tokens=256,
-            system=(
+        kwargs = {
+            "model": os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6"),
+            "max_tokens": 256,
+            "system": (
                 "You are a warm, curious tarot companion conducting a brief onboarding "
                 "conversation. Ask ONE question based on the provided topic. "
                 "Let prior answers subtly inform your tone where relevant. "
                 "Keep it to 1–3 sentences. No numbering, no preamble, no sign-off."
             ),
-            messages=[
+            "messages": [
                 {
                     "role": "user",
                     "content": (
@@ -126,8 +126,17 @@ def _generate_question(api_key: str, step: int, prior_qas: list) -> str:
                     ),
                 }
             ],
-        )
-        return msg.content[0].text.strip()
+            "thinking": {"type": "disabled"},
+        }
+        try:
+            msg = client.messages.create(**kwargs)
+        except anthropic.BadRequestError:
+            kwargs.pop("thinking", None)
+            msg = client.messages.create(**kwargs)
+        for block in msg.content:
+            if block.type == "text":
+                return block.text.strip()
+        return topic
     except Exception:
         return topic
 
