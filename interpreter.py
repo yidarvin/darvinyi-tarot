@@ -171,11 +171,14 @@ class TarotInterpreter:
         *,
         spread_md_path: Optional[str] = None,
         tarot_md_path: Optional[str] = None,
-        model: str = "claude-sonnet-4-20250514",
+        model: Optional[str] = None,
         temperature: float = 1.0,
     ) -> None:
         self.client = anthropic.Anthropic(api_key=anthropic_api_key)
-        self.model = model
+        # Default matches current Claude API; override with ANTHROPIC_MODEL env (e.g. on Railway).
+        self.model = model or os.environ.get(
+            "ANTHROPIC_MODEL", "claude-sonnet-4-6"
+        )
         self.temperature = temperature
         self.spread_key = spread_key
 

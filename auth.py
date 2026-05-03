@@ -10,6 +10,7 @@ Redirects to url_for("main.dashboard") after login/register/onboarding.
 Requires the "main" blueprint to be registered in create_app().
 """
 
+import os
 from urllib.parse import urlparse
 
 import anthropic
@@ -94,7 +95,7 @@ class LogoutForm(FlaskForm):
 
 
 def _generate_question(api_key: str, step: int, prior_qas: list) -> str:
-    """Call claude-sonnet-4-20250514 to produce a warm, personalised question.
+    """Call Claude (see ANTHROPIC_MODEL) to produce a warm, personalised question.
 
     Prior answers are included as context so later questions can acknowledge
     what the user has already shared. Falls back to the static topic on any error.
@@ -108,7 +109,7 @@ def _generate_question(api_key: str, step: int, prior_qas: list) -> str:
             else "This is the first question — no prior context yet."
         )
         msg = client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model=os.environ.get("ANTHROPIC_MODEL", "claude-sonnet-4-6"),
             max_tokens=256,
             system=(
                 "You are a warm, curious tarot companion conducting a brief onboarding "

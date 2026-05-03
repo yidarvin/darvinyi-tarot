@@ -12,6 +12,7 @@ Registers (all login_required):
   GET       /cards/<filename>               (card image assets)
 """
 
+import logging
 import os
 from typing import Dict, List, Optional, Tuple
 
@@ -56,6 +57,7 @@ from spread import (
 )
 
 bp = Blueprint("main", __name__)
+logger = logging.getLogger(__name__)
 
 
 class _ApiKeyError(Exception):
@@ -471,6 +473,11 @@ def reading_card_stream(reading_id: int, card_index: int):
             yield "data: [ERROR:nokey]\n\n"
             return
         except Exception:
+            logger.exception(
+                "reading_card_stream: interpreter setup failed reading_id=%s card_index=%s",
+                reading_id,
+                card_index,
+            )
             yield _SSE_ERROR
             return
 
@@ -498,7 +505,21 @@ def reading_card_stream(reading_id: int, card_index: int):
         except _anthropic.RateLimitError:
             yield "data: [ERROR:ratelimit]\n\n"
             return
+        except _anthropic.APIStatusError as exc:
+            logger.error(
+                "reading_card_stream: Anthropic APIStatusError reading_id=%s status=%s body=%s",
+                reading_id,
+                getattr(exc.response, "status_code", None),
+                exc.body,
+            )
+            yield _SSE_ERROR
+            return
         except Exception:
+            logger.exception(
+                "reading_card_stream: stream failed reading_id=%s card_index=%s",
+                reading_id,
+                card_index,
+            )
             yield _SSE_ERROR
             return
 
@@ -569,6 +590,11 @@ def reading_summary_generate(reading_id: int):
         db.session.commit()
         return jsonify({"ok": True, "narrative": reading.narrative, "cached": False})
     except Exception:
+        logger.exception(
+            "reading_summary_generate failed reading_id=%s user_id=%s",
+            reading_id,
+            current_user.id,
+        )
         return jsonify(
             {"ok": False, "error": "generation_failed", "message": "Could not generate summary."}
         ), 500

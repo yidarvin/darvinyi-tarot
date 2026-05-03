@@ -149,8 +149,8 @@ def main() -> None:
     )
     parser.add_argument(
         "--model",
-        default="claude-sonnet-4-20250514",
-        help="Anthropic model to use for interpretations (default: claude-sonnet-4-20250514)",
+        default="claude-sonnet-4-6",
+        help="Anthropic model to use for interpretations (default: claude-sonnet-4-6)",
     )
     parser.add_argument(
         "--reversed",
